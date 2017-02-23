@@ -6,8 +6,8 @@
   "build": {
     "targetFolder": "dist",
     "sourceFolder": "webapp",
-    "buildRequired": true,
-    "lastBuildDateTime": "Thu, 01 Dec 2016 10:15:21 GMT"
+    "buildRequired": false,
+    "lastBuildDateTime": "Thu, 23 Feb 2017 06:57:03 GMT"
   },
   "generation": [
     {
@@ -42,7 +42,7 @@
   },
   "hcpdeploy": {
     "account": "add7a41bc",
-    "name": "solexptools",
-    "lastVersionWeTriedToDeploy": "1.2.1"
+    "name": "scholarcabmini",
+    "lastVersionWeTriedToDeploy": "1.0.0"
   }
 }
