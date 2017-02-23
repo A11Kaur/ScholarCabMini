@@ -14,8 +14,7 @@
 									<Label text="Username" required="true"></Label>
 								</f:label>
 								<f:fields>
-									<Input id="usernameInput" placeholder="Enter I number" valueStateText="Must be a valid username" value="{/currentUser/username}"
-										liveChange="onUsernameValidate"/>
+									<SearchField id="usernameInput" placeholder="Enter I number" value="{/currentUser/username}" search="onUsernameValidate" />
 								</f:fields>
 							</f:FormElement>
 							<f:FormElement>
