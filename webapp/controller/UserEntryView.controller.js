@@ -1,11 +1,13 @@
 sap.ui.define([
 	"sap/ui/core/mvc/Controller",
 	"sap/ui/model/json/JSONModel",
+	"sap/ui/model/odata/v2/ODataModel",
 	"sap/ui/model/Filter",
 	'sap/m/Dialog',
 	'sap/m/Button',
-	'sap/m/Text'
-], function(Controller, JSONModel, Filter, Dialog, Button, Text) {
+	'sap/m/Text',
+	"sap/m/MessageToast"
+], function(Controller, JSONModel, ODataModel, Filter, Dialog, Button, Text, MessageToast) {
 	"use strict";
 	var _view,
 		emptyUser = {
@@ -19,29 +21,48 @@ sap.ui.define([
 				availed: false
 			}
 		};
-
+	var oDataModel;
 	var DB = {
-		queryData: function(inputUsername) {
-			var oModel = _view.getModel(),
-				dataObj = JSON.parse(oModel.getJSON());
-			for (var i = 0; i < dataObj.userList.length; i++) {
-				if (dataObj.userList[i].username === inputUsername.toUpperCase()) {
-					return dataObj.userList[i];
+		queryData: function(inputUsername, callback) {
+			oDataModel.read("/scholarcab('" + inputUsername + "')", {
+				success: function(data) {
+					var userData = {
+						username: data.SCHOLAR_ID,
+						name: data.SCHOLAR_NAME,
+						email: data.EMAIL_ID,
+						cab: {
+							address: data.G_ADDRESS,
+							distance: data.DISTANCE,
+							canAvail: (data.CAN_AVAIL === 1),
+							availed: (data.AVAILED === 1)
+						}
+					};
+					callback(userData);
+				},
+				error: function() {
+					var userData = {};
+					callback(userData);
 				}
-			}
-			return null;
+			});
 		},
-		updateData: function(inputUsername, userData) {
-			var oModel = _view.getModel(),
-				dataObj = JSON.parse(oModel.getJSON());
-			for (var i = 0; i < dataObj.userList.length; i++) {
-				if (dataObj.userList[i].username === inputUsername.toUpperCase()) {
-					dataObj.userList[i] = userData;
-					oModel.setProperty('/userList', dataObj.userList);
-					return true;
+		updateData: function(userData, callback) {
+			var oData = {
+				SCHOLAR_ID: userData.username,
+				SCHOLAR_NAME: userData.name,
+				EMAIL_ID: userData.email,
+				G_ADDRESS: userData.cab.address,
+				DISTANCE: userData.cab.distance,
+				CAN_AVAIL: userData.cab.availed ? 1 : 0,
+				AVAILED: userData.cab.availed ? 1 : 0
+			};
+			oDataModel.update("/scholarcab('" + userData.username + "')", oData, {
+				success: function() {
+					callback(true);
+				},
+				error: function() {
+					callback(false);
 				}
-			}
-			return false;
+			});
 		}
 	};
 
@@ -53,8 +74,25 @@ sap.ui.define([
 		 * @memberOf com.sap.scholar2016.cabmini.view.UserEntryView
 		 */
 		onInit: function() {
+			oDataModel = new ODataModel({
+				serviceUrl: "/scholarcab_odata"
+			});
 			var oModel = new JSONModel();
-			oModel.loadData("json/users.json");
+			var initData = {
+				currentUser: emptyUser,
+				userList: [{
+					username: "I327891",
+					name: "Merbin J Anselm",
+					email: "merbin.j.anselm@sap.com",
+					cab: {
+						address: "",
+						distance: 0,
+						canAvail: false,
+						availed: false
+					}
+				}]
+			};
+			oModel.setData(initData);
 			this.getView().setModel(oModel);
 			_view = this.getView();
 
@@ -79,7 +117,6 @@ sap.ui.define([
 			var bind = new sap.ui.model.Binding(oTModel, "/cab", oTModel.getContext("/"));
 			bind.attachChange(function() {
 				var dataObj = JSON.parse(sap.ui.getCore().getModel("mapData").getJSON());
-				console.log(dataObj);
 				oModel.setProperty('/currentUser/cab/address', dataObj.cab.address);
 				oModel.setProperty('/currentUser/cab/canAvail', dataObj.cab.canAvail);
 				_view.setModel(oModel);
@@ -92,23 +129,25 @@ sap.ui.define([
 		onUsernameValidate: function(oEvent) {
 			var usernameInput = _view.byId("usernameInput"),
 				oModel = _view.getModel(),
-				txt = oEvent.getParameters().value,
-				result = DB.queryData(txt),
+				txt = oEvent.getParameters().query,
 				valid = true;
-			if (!result) {
-				result = emptyUser;
-				valid = false;
+			DB.queryData(txt, dbCallback);
+
+			function dbCallback(userData) {
+				if (!userData.username) {
+					userData = emptyUser;
+					valid = false;
+					MessageToast.show("No Scholar user found!");
+				}
+				oModel.setProperty('/currentUser', userData);
+				_view.setModel(oModel);
+				_view.byId('btnSave').setEnabled(JSON.parse(_view.getModel().getJSON()).currentUser.cab.address !== "");
+				_view.byId('btnAddress').setEnabled(valid);
 			}
-			oModel.setProperty('/currentUser', result);
-			_view.setModel(oModel);
-			usernameInput.setValueState(valid ? "None" : "Error");
-			_view.byId('btnSave').setEnabled(JSON.parse(_view.getModel().getJSON()).currentUser.cab.address !== "");
-			_view.byId('btnAddress').setEnabled(valid);
 		},
 		onSaveChanges: function(oEvent) {
 			var oModel = _view.getModel();
 			var dataObj = JSON.parse(oModel.getJSON());
-			DB.updateData(dataObj.currentUser.username, dataObj.currentUser);
 			var dialog = new Dialog({
 				title: 'Scholar Cab Booking',
 				type: 'Message',
@@ -132,7 +171,18 @@ sap.ui.define([
 					dialog.destroy();
 				}
 			});
-			dialog.open();
+			_view.setBusy(true);
+			DB.updateData(dataObj.currentUser, dbCallback);
+
+			function dbCallback(success) {
+				_view.setBusy(false);
+				if (success) {
+					MessageToast.show("User details saved");
+					dialog.open();
+				} else {
+					MessageToast.show("Error saving user details!");
+				}
+			}
 		},
 		onSelectAddress: function() {
 			var oRouter = sap.ui.core.UIComponent.getRouterFor(this);

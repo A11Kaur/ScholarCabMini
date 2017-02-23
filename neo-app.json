@@ -17,13 +17,13 @@
 		},
 		"description": "SAPUI5 Test Resources"
 	}, {
-		"path": "/github",
+		"path": "/scholarcab_odata",
 		"target": {
 			"type": "destination",
-			"name": "SAPGithubCorporate",
-			"entryPath": "/github"
+			"name": "scholarcab_odata",
+			"entryPath": "/"
 		},
-		"description": "SAPUI5 Test Resources"
+		"description": "Scholar Cab OData service"
 	}],
 	"sendWelcomeFileRedirect": true,
 	"cacheControl": [{
